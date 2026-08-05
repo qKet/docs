@@ -1,0 +1,580 @@
+<title>Qket 인프라 아키텍처</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --surface3: #191919;
+    --border: #262626;
+    --border-strong: #383838;
+    --text: #f2f2f2;
+    --text-2: #a3a3a3;
+    --text-3: #6b6b6b;
+    --accent: #8b5cf6;      /* private/compute tier */
+    --accent-bg: rgba(139, 92, 246, 0.12);
+    --tier-public: #60a5fa; /* public tier */
+    --tier-public-bg: rgba(96, 165, 250, 0.12);
+    --tier-data: #22c55e;   /* private-data tier */
+    --tier-data-bg: rgba(34, 197, 94, 0.12);
+    --external: #f97316;    /* outside-VPC AWS managed services / CI */
+    --external-bg: rgba(249, 115, 22, 0.12);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafafa; --surface: #ffffff; --surface2: #f4f4f5; --surface3: #efeff1;
+      --border: #e4e4e7; --border-strong: #d4d4d8;
+      --text: #18181b; --text-2: #52525b; --text-3: #a1a1aa;
+      --accent-bg: rgba(139, 92, 246, 0.08);
+      --tier-public-bg: rgba(96, 165, 250, 0.1);
+      --tier-data-bg: rgba(34, 197, 94, 0.1);
+      --external-bg: rgba(249, 115, 22, 0.1);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #fafafa; --surface: #ffffff; --surface2: #f4f4f5; --surface3: #efeff1;
+    --border: #e4e4e7; --border-strong: #d4d4d8;
+    --text: #18181b; --text-2: #52525b; --text-3: #a1a1aa;
+    --accent-bg: rgba(139, 92, 246, 0.08);
+    --tier-public-bg: rgba(96, 165, 250, 0.1);
+    --tier-data-bg: rgba(34, 197, 94, 0.1);
+    --external-bg: rgba(249, 115, 22, 0.1);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1e1e1e; --surface3: #191919;
+    --border: #262626; --border-strong: #383838;
+    --text: #f2f2f2; --text-2: #a3a3a3; --text-3: #6b6b6b;
+    --accent-bg: rgba(139, 92, 246, 0.12);
+    --tier-public-bg: rgba(96, 165, 250, 0.12);
+    --tier-data-bg: rgba(34, 197, 94, 0.12);
+    --external-bg: rgba(249, 115, 22, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif;
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  header.page-head {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  header.page-head h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  header.page-head p {
+    color: var(--text-2);
+    font-size: 13px;
+    margin: 0;
+  }
+  header.page-head .back {
+    font-size: 12px;
+    color: var(--text-2);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 6px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  header.page-head .back:hover { color: var(--text); border-color: var(--accent); }
+
+  /* legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .legend .chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px 5px 8px;
+  }
+  .legend .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+  .flow-arrow {
+    text-align: center;
+    color: var(--text-3);
+    font-size: 11px;
+    letter-spacing: .02em;
+    margin: 8px 0;
+    font-family: var(--mono);
+  }
+
+  section { margin-bottom: 48px; }
+  section > h2 {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  section > h2 .n {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+  }
+  section > p.desc {
+    color: var(--text-2);
+    font-size: 12.5px;
+    margin: 0 0 16px;
+    max-width: 72ch;
+  }
+
+  .scrollx { overflow-x: auto; padding-bottom: 4px; }
+
+  /* ---- edge row ---- */
+  .edge-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px;
+    min-width: 720px;
+  }
+  .edge-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .edge-card .t {
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .edge-card .d {
+    font-size: 11px;
+    color: var(--text-3);
+    font-family: var(--mono);
+  }
+  .edge-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3);
+    font-size: 16px;
+  }
+
+  /* ---- VPC diagram ---- */
+  .vpc-box {
+    min-width: 900px;
+    border: 2px dashed var(--border-strong);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    background: linear-gradient(180deg, var(--surface3), transparent 40%);
+  }
+  .vpc-label {
+    position: absolute;
+    top: -13px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--text-2);
+    letter-spacing: .01em;
+  }
+  .igw-tag {
+    position: absolute;
+    top: -13px;
+    right: 20px;
+    background: var(--tier-public-bg);
+    border: 1px solid var(--tier-public);
+    color: var(--tier-public);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .az-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 6px;
+  }
+  .az-col {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--surface);
+  }
+  .az-col > .az-title {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: var(--text-2);
+    font-family: var(--mono);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .tier {
+    border-radius: 9px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid transparent;
+  }
+  .tier:last-child { margin-bottom: 0; }
+  .tier .tier-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .tier .tier-name {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .tier .tier-cidr {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-3);
+  }
+  .tier.public { background: var(--tier-public-bg); border-color: rgba(96,165,250,.35); }
+  .tier.public .tier-name { color: var(--tier-public); }
+  .tier.private { background: var(--accent-bg); border-color: rgba(139,92,246,.35); }
+  .tier.private .tier-name { color: var(--accent); }
+  .tier.data { background: var(--tier-data-bg); border-color: rgba(34,197,94,.35); }
+  .tier.data .tier-name { color: var(--tier-data); }
+
+  .res-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .res-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .res-chip .sub {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--text-3);
+    font-weight: 400;
+    margin-top: 1px;
+  }
+  .res-chip.faint {
+    color: var(--text-3);
+    font-weight: 500;
+    font-style: normal;
+    border-style: dashed;
+  }
+
+  /* ---- EKS workload detail ---- */
+  .eks-card {
+    min-width: 900px;
+    border: 1px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .eks-card > .eks-title {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+  .eks-card > .eks-sub {
+    font-size: 11.5px;
+    color: var(--text-2);
+    margin-bottom: 14px;
+  }
+  .ns-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .ns-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .ns-col .ns-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-2);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pod-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .pod-chip:last-child { margin-bottom: 0; }
+  .pod-chip .irsa {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .pod-chip .conn {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 400;
+    color: var(--external);
+  }
+
+  /* ---- support services row ---- */
+  .support-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    min-width: 900px;
+  }
+  .support-card {
+    background: var(--surface);
+    border: 1px solid var(--external);
+    border-left: 3px solid var(--external);
+    border-radius: 10px;
+    padding: 13px 15px;
+  }
+  .support-card .t {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--external);
+    margin-bottom: 4px;
+  }
+  .support-card .d {
+    font-size: 11.5px;
+    color: var(--text-2);
+  }
+  .support-card .d code {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-3);
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-3);
+    font-size: 11.5px;
+  }
+
+  @media (max-width: 700px) {
+    header.page-head { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="page-head">
+    <div>
+      <h1>Qket 인프라 아키텍처</h1>
+      <p>team5-qket · ap-northeast-2 · dev 환경 (Terraform 구축 기준)</p>
+    </div>
+    <a class="back" href="README.html">← 상세 문서로</a>
+  </header>
+
+  <div class="legend">
+    <span class="chip"><span class="dot" style="background:var(--tier-public)"></span>public 서브넷 (NAT / ALB)</span>
+    <span class="chip"><span class="dot" style="background:var(--accent)"></span>private 서브넷 (EKS 노드 / bastion)</span>
+    <span class="chip"><span class="dot" style="background:var(--tier-data)"></span>private-data 서브넷 (RDS / Redis, 인터넷 라우트 없음)</span>
+    <span class="chip"><span class="dot" style="background:var(--external)"></span>VPC 밖 관리형 서비스 / CI</span>
+  </div>
+
+  <section>
+    <h2><span class="n">01</span> 진입 경로</h2>
+    <p class="desc">사용자 요청이 VPC에 닿기 전까지 거치는 경로. Route53 레코드는 아직 Terraform이 아니라 수동으로 관리 중이라, ALB가 재생성되면 직접 갱신해야 함.</p>
+    <div class="scrollx">
+      <div class="edge-row">
+        <div class="edge-card">
+          <div class="t">사용자</div>
+          <div class="d">browser</div>
+        </div>
+        <div class="edge-arrow">→</div>
+        <div class="edge-card">
+          <div class="t">Route53</div>
+          <div class="d">dev.jun979.click<br>(jun979.click 존 공유, 수동 관리)</div>
+        </div>
+        <div class="edge-arrow">→</div>
+        <div class="edge-card">
+          <div class="t">ALB</div>
+          <div class="d">team5-qket-alb<br>(VPC public 서브넷, 아래 참고)</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-arrow">포스터 이미지는 별도 경로 — CloudFront → S3 (아래 03 참고)</div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> VPC 네트워크 — 10.70.0.0/16</h2>
+    <p class="desc">AZ 2개 × 3계층 서브넷. private-data는 인터넷 라우트가 아예 없고 EKS/bastion 보안그룹에서만 접근 가능. dev는 RDS/Redis를 단일 AZ(2a)에만 둠.</p>
+    <div class="scrollx">
+      <div class="vpc-box">
+        <span class="vpc-label">VPC · 10.70.0.0/16</span>
+        <span class="igw-tag">IGW</span>
+        <div class="az-grid">
+
+          <div class="az-col">
+            <div class="az-title">ap-northeast-2a</div>
+
+            <div class="tier public">
+              <div class="tier-head"><span class="tier-name">PUBLIC</span><span class="tier-cidr">10.70.1.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip">NAT GW (a)</span>
+                <span class="res-chip">ALB 노드</span>
+              </div>
+            </div>
+
+            <div class="tier private">
+              <div class="tier-head"><span class="tier-name">PRIVATE</span><span class="tier-cidr">10.70.2.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip">EKS 노드<span class="sub">t3.medium</span></span>
+                <span class="res-chip">SSM bastion<span class="sub">t3.micro · SSH 없음</span></span>
+              </div>
+            </div>
+
+            <div class="tier data">
+              <div class="tier-head"><span class="tier-name">PRIVATE-DATA</span><span class="tier-cidr">10.70.3.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip">RDS MySQL 8.0<span class="sub">team5-qket-mysql-dev · db.t3.micro</span></span>
+                <span class="res-chip">ElastiCache Redis 7.1<span class="sub">team5-qket-redis-dev · cache.t3.micro</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="az-col">
+            <div class="az-title">ap-northeast-2b</div>
+
+            <div class="tier public">
+              <div class="tier-head"><span class="tier-name">PUBLIC</span><span class="tier-cidr">10.70.4.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip">NAT GW (b)</span>
+                <span class="res-chip">ALB 노드</span>
+              </div>
+            </div>
+
+            <div class="tier private">
+              <div class="tier-head"><span class="tier-name">PRIVATE</span><span class="tier-cidr">10.70.5.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip">EKS 노드<span class="sub">t3.medium</span></span>
+              </div>
+            </div>
+
+            <div class="tier data">
+              <div class="tier-head"><span class="tier-name">PRIVATE-DATA</span><span class="tier-cidr">10.70.6.0/24</span></div>
+              <div class="res-chips">
+                <span class="res-chip faint">미사용 (dev는 단일 AZ)</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> EKS 클러스터 내부 워크로드</h2>
+    <p class="desc">team5-qket-cluster (v1.34) · 위 두 private 서브넷에 스케줄링되는 노드그룹 위에서 도는 것들. IRSA로 각 서비스어카운트가 필요한 AWS 권한만 최소로 받음.</p>
+    <div class="scrollx">
+      <div class="eks-card">
+        <div class="eks-title">EKS 워크로드</div>
+        <div class="eks-sub">네임스페이스별 — 실제 물리 배치는 2a/2b 노드에 분산</div>
+        <div class="ns-grid">
+
+          <div class="ns-col">
+            <div class="ns-name">kube-system</div>
+            <div class="pod-chip">aws-load-balancer-controller
+              <span class="irsa">IRSA → ALB 생성/관리</span>
+            </div>
+          </div>
+
+          <div class="ns-col">
+            <div class="ns-name">external-secrets</div>
+            <div class="pod-chip">external-secrets (ESO)
+              <span class="irsa">IRSA → GetSecretValue</span>
+              <span class="conn">← Secrets Manager 읽음</span>
+              <span class="conn">→ db-secrets / redis-secrets 동기화 (qket-dev, 1h)</span>
+            </div>
+          </div>
+
+          <div class="ns-col">
+            <div class="ns-name">qket-dev</div>
+            <div class="pod-chip">qket-backend
+              <span class="irsa">SA: qket-backend (IRSA)</span>
+              <span class="conn">→ S3 PutObject</span>
+            </div>
+            <div class="pod-chip">qket-frontend</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> VPC 밖 — 관리형 서비스 &amp; CI/CD</h2>
+    <p class="desc">같은 AWS 계정 안에 있지만 VPC 네트워크에 속하지 않는 서비스들. 대부분 Terraform이 소유하고, 값이 바뀌면 apply를 다시 돌려야 반영됨.</p>
+    <div class="scrollx">
+      <div class="support-grid">
+        <div class="support-card">
+          <div class="t">Secrets Manager</div>
+          <div class="d">RDS 자동 시크릿 <code>rds!db-...</code> (건드리지 않음)<br>+ <code>team5-qket-connection-dev</code> (DB_HOST/REDIS_HOST)<br>→ ESO가 IRSA로 읽음</div>
+        </div>
+        <div class="support-card">
+          <div class="t">IAM / OIDC</div>
+          <div class="d">EKS OIDC 프로바이더 (module.eks 소유)<br>→ alb-controller / eso / qket-backend<br>각각 스코프된 IRSA 역할</div>
+        </div>
+        <div class="support-card">
+          <div class="t">S3 + CloudFront</div>
+          <div class="d"><code>team5-qket-posters-dev</code> (완전 private)<br>CloudFront(OAC)로만 읽기 가능<br>backend는 IRSA로 PutObject만</div>
+        </div>
+        <div class="support-card">
+          <div class="t">GitHub Actions</div>
+          <div class="d"><code>build-push-dev.yml</code><br>이미지 빌드 → ECR 푸시 → Ingress/NetworkPolicy만 적용<br>(namespace·ConfigMap·Secret은 Terraform/ESO 소유)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    라이브 상태 스냅샷 기준 문서 — 인프라를 destroy/재생성하면 리소스 ID는 바뀌지만 이 구조 자체는 유지됨. 상세 리소스 목록/명령어는 <a href="README.html">README.html</a> 참고.
+  </footer>
+
+</div>

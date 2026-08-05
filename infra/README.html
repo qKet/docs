@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qket 인프라 문서 (Terraform)</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #262626;
+    --border-strong: #383838;
+    --text: #f2f2f2;
+    --text-2: #a3a3a3;
+    --text-3: #6b6b6b;
+    --accent: #8b5cf6;
+    --accent-dim: rgba(139, 92, 246, 0.15);
+    --success: #22c55e;
+    --success-bg: rgba(34, 197, 94, 0.12);
+    --warning: #fbbf24;
+    --warning-bg: rgba(251, 191, 36, 0.12);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96, 165, 250, 0.12);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --surface2: #f4f4f5;
+      --border: #e4e4e7;
+      --border-strong: #d4d4d8;
+      --text: #18181b;
+      --text-2: #52525b;
+      --text-3: #a1a1aa;
+      --accent-dim: rgba(139, 92, 246, 0.1);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #fafafa; --surface: #ffffff; --surface2: #f4f4f5;
+    --border: #e4e4e7; --border-strong: #d4d4d8;
+    --text: #18181b; --text-2: #52525b; --text-3: #a1a1aa;
+    --accent-dim: rgba(139, 92, 246, 0.1);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1e1e1e;
+    --border: #262626; --border-strong: #383838;
+    --text: #f2f2f2; --text-2: #a3a3a3; --text-3: #6b6b6b;
+    --accent-dim: rgba(139, 92, 246, 0.15);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  a { color: var(--accent); }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  header.page-head {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  header.page-head h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 8px;
+  }
+  header.page-head p {
+    color: var(--text-2);
+    font-size: 13px;
+    margin: 0;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .n { font-size: 22px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+  nav.toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 28px 0 44px;
+  }
+  nav.toc a {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-decoration: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 999px;
+    transition: all .15s;
+  }
+  nav.toc a:hover { color: var(--text); border-color: var(--accent); }
+
+  section { margin-bottom: 56px; scroll-margin-top: 20px; }
+  section > h2 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  section > h2 .badge-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    background: var(--surface2);
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+  section > p.desc { color: var(--text-2); font-size: 13px; margin: 0 0 20px; max-width: 720px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card .path {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-3);
+    margin-bottom: 14px;
+  }
+  .card .note {
+    font-size: 12.5px;
+    color: var(--text-2);
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+  table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 10.5px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+  }
+  table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  table td.mono, code, .mono { font-family: var(--mono); font-size: 11.5px; }
+  table tr:last-child td { border-bottom: none; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .pill.purple { background: var(--accent-dim); color: var(--accent); }
+  .pill.green  { background: var(--success-bg); color: var(--success); }
+  .pill.blue   { background: var(--blue-bg); color: var(--blue); }
+  .pill.yellow { background: var(--warning-bg); color: var(--warning); }
+  .pill.gray   { background: var(--surface2); color: var(--text-3); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    overflow-x: auto;
+  }
+  .diagram pre {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-2);
+    white-space: pre;
+  }
+  .diagram .hl { color: var(--accent); font-weight: 700; }
+  .diagram .hl2 { color: var(--blue); font-weight: 700; }
+  .diagram .hl3 { color: var(--success); font-weight: 700; }
+
+  ul.plain { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); font-size: 12.5px; }
+  ul.plain li { margin-bottom: 3px; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--text-3);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-head">
+    <h1>🏗️ Qket 인프라 문서</h1>
+    <p>Terraform으로 관리하는 AWS + EKS 인프라 현황 — <code class="mono">terraform/</code> 기준, dev 환경 (team5-qket) · <a href="architecture.html">→ 아키텍처 다이어그램 보기</a></p>
+    <div class="stat-row">
+      <div class="stat"><div class="n">7</div><div class="l">Terraform 모듈</div></div>
+      <div class="stat"><div class="n">6</div><div class="l">서브넷 (2 AZ)</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Helm 릴리즈</div></div>
+      <div class="stat"><div class="n">7</div><div class="l">쿠버네티스 네임스페이스</div></div>
+      <div class="stat"><div class="n">1+1</div><div class="l">RDS / Redis (dev)</div></div>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#overview">전체 구조</a>
+    <a href="#network">network</a>
+    <a href="#eks">eks</a>
+    <a href="#data">data (RDS/Redis)</a>
+    <a href="#bastion">bastion</a>
+    <a href="#alb">alb-controller</a>
+    <a href="#eso">eso</a>
+    <a href="#k8s">쿠버네티스 현황</a>
+    <a href="#helm">Helm 릴리즈</a>
+    <a href="#sg">보안그룹</a>
+    <a href="#access">접속 방법</a>
+  </nav>
+
+  <section id="overview">
+    <h2>전체 구조</h2>
+    <p class="desc">VPC 하나를 dev/prod가 공유하고(EKS 클러스터도 공유), RDS/ElastiCache/Secrets Manager만 환경별로 분리하는 구조입니다. private-data 서브넷은 인터넷 라우트가 아예 없어서 EKS 파드/bastion을 거치지 않고는 외부에서 절대 접근 불가합니다.</p>
+    <div class="diagram">
+<pre>VPC (<span class="hl">10.70.0.0/16</span>)
+│
+├─ <span class="hl2">Public 서브넷</span> × 2 (2a, 2b)  ── IGW, NAT Gateway × 2, ALB
+│
+├─ <span class="hl2">Private-일반 서브넷</span> × 2 (2a, 2b)  ── EKS 노드그룹 / 파드
+│    └─ 각 AZ 전용 NAT로만 아웃바운드 (cross-AZ 안 탐)
+│
+└─ <span class="hl3">Private-data 서브넷</span> × 2 (2a, 2b)  ── RDS, ElastiCache
+     └─ 인터넷 라우트 없음 (완전 격리) — EKS 보안그룹 + bastion 보안그룹에서만 인바운드 허용
+
+EKS 클러스터
+├─ 노드그룹 (private-일반)
+├─ aws-load-balancer-controller (Helm, kube-system)  → Ingress를 실제 ALB로 변환
+└─ external-secrets (Helm, external-secrets 네임스페이스)
+     └─ Secrets Manager(RDS 자동 시크릿 + connection 시크릿) → k8s Secret 자동 동기화
+
+SSM bastion (private-일반)
+└─ SSH 없이 SSM Session Manager로만 접속, RDS/Redis 터널링용</pre>
+    </div>
+  </section>
+
+  <section id="network">
+    <h2>module.network <span class="badge-count">terraform/modules/network</span></h2>
+    <p class="desc">VPC, 서브넷, 라우팅, NAT — dev/prod가 공유하는 인프라 계층.</p>
+
+    <div class="card">
+      <h3>서브넷 (6개, 2 AZ)</h3>
+      <table>
+        <tr><th>이름</th><th>AZ</th><th>CIDR</th><th>Tier</th><th>용도</th></tr>
+        <tr><td class="mono">team5-qket-public-2a</td><td>2a</td><td class="mono">10.70.1.0/24</td><td><span class="pill blue">public</span></td><td>NAT, ALB</td></tr>
+        <tr><td class="mono">team5-qket-public-2b</td><td>2b</td><td class="mono">10.70.4.0/24</td><td><span class="pill blue">public</span></td><td>NAT, ALB</td></tr>
+        <tr><td class="mono">team5-qket-private-2a</td><td>2a</td><td class="mono">10.70.2.0/24</td><td><span class="pill purple">private</span></td><td>EKS 노드/파드</td></tr>
+        <tr><td class="mono">team5-qket-private-2b</td><td>2b</td><td class="mono">10.70.5.0/24</td><td><span class="pill purple">private</span></td><td>EKS 노드/파드</td></tr>
+        <tr><td class="mono">team5-qket-private-2a-data</td><td>2a</td><td class="mono">10.70.3.0/24</td><td><span class="pill green">data</span></td><td>RDS, Redis</td></tr>
+        <tr><td class="mono">team5-qket-private-2b-data</td><td>2b</td><td class="mono">10.70.6.0/24</td><td><span class="pill green">data</span></td><td>RDS, Redis</td></tr>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>라우팅 테이블</h3>
+        <ul class="plain">
+          <li><b>public-rt</b> — 0.0.0.0/0 → IGW (1개, 공유)</li>
+          <li><b>private-rt-2a / 2b</b> — 0.0.0.0/0 → 각 AZ 전용 NAT (AZ당 분리)</li>
+          <li><b>private-data-rt</b> — 로컬만, 인터넷 라우트 없음</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>게이트웨이</h3>
+        <ul class="plain">
+          <li>Internet Gateway × 1</li>
+          <li>NAT Gateway × 2 (AZ당 1개 + EIP)</li>
+        </ul>
+        <div class="note">NAT을 AZ별로 분리한 이유: cross-AZ 트래픽 비용 절감 + 한쪽 AZ 장애가 다른 AZ에 영향 안 주게</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="eks">
+    <h2>module.eks <span class="badge-count">terraform/modules/eks</span></h2>
+    <p class="desc">EKS 컨트롤 플레인 + 워커 노드그룹 + IRSA(OIDC) 전제조건.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>클러스터</h3>
+        <table>
+          <tr><td>이름</td><td class="mono">team5-qket-cluster</td></tr>
+          <tr><td>버전</td><td>1.34</td></tr>
+          <tr><td>엔드포인트</td><td><span class="pill green">public</span> + <span class="pill green">private</span></td></tr>
+          <tr><td>서브넷</td><td>public × 2 + private-일반 × 2</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>노드그룹</h3>
+        <table>
+          <tr><td>인스턴스 타입</td><td class="mono">t3.medium</td></tr>
+          <tr><td>스케일</td><td>desired 2 / min 1 / max 3</td></tr>
+          <tr><td>배치</td><td>private-일반 서브넷만</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>IAM / OIDC</h3>
+      <ul class="plain">
+        <li><b>eks-cluster-role</b> — AmazonEKSClusterPolicy</li>
+        <li><b>eks-node-role</b> — AmazonEKSWorkerNodePolicy, AmazonEKS_CNI_Policy, AmazonEC2ContainerRegistryReadOnly</li>
+        <li><b>OIDC 프로바이더</b> — 클러스터당 1개, IRSA(서비스어카운트별 IAM 역할)를 쓰는 alb-controller/eso 모듈이 여기서 output으로 받아감</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="data">
+    <h2>module.data_dev <span class="badge-count">terraform/modules/data</span></h2>
+    <p class="desc">RDS(MySQL) + ElastiCache(Redis) — 환경별로 분리(추후 <code class="mono">data_prod</code> 추가 예정). dev는 비용 절감을 위해 싱글 AZ / 자동 페일오버 없음.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>RDS (MySQL)</h3>
+        <table>
+          <tr><td>식별자</td><td class="mono">team5-qket-mysql-dev</td></tr>
+          <tr><td>엔진</td><td>MySQL 8.0</td></tr>
+          <tr><td>인스턴스</td><td class="mono">db.t3.micro</td></tr>
+          <tr><td>스토리지</td><td>20GB → 자동확장 최대 100GB</td></tr>
+          <tr><td>Multi-AZ</td><td><span class="pill gray">false</span> (dev)</td></tr>
+          <tr><td>비밀번호</td><td>RDS 자동 생성 (Secrets Manager)</td></tr>
+          <tr><td>삭제 시 스냅샷</td><td><span class="pill gray">skip</span> (dev는 destroy 자주 함)</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>ElastiCache (Redis)</h3>
+        <table>
+          <tr><td>식별자</td><td class="mono">team5-qket-redis-dev</td></tr>
+          <tr><td>엔진</td><td>Redis 7.1</td></tr>
+          <tr><td>노드 타입</td><td class="mono">cache.t3.micro</td></tr>
+          <tr><td>노드 수</td><td>1 (자동 페일오버 없음)</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>접근 제어</h3>
+      <p style="margin:0;font-size:12.5px;color:var(--text-2)">둘 다 private-data 서브넷에만 있고, 보안그룹이 <b>EKS 클러스터 보안그룹</b>과 <b>SSM bastion 보안그룹</b>발 인바운드만 허용합니다 (3306 / 6379). 인터넷 라우트 자체가 없어서 그 외 경로로는 원천적으로 접근 불가.</p>
+    </div>
+  </section>
+
+  <section id="bastion">
+    <h2>module.bastion <span class="badge-count">terraform/modules/bastion</span></h2>
+    <p class="desc">개발자가 RDS/Redis에 직접 접속할 때 쓰는 다리. SSH 포트를 아예 안 열고 SSM Session Manager로만 접속.</p>
+    <div class="card">
+      <table>
+        <tr><td>인스턴스</td><td class="mono">t3.micro</td><td>AMI</td><td>Amazon Linux 2023 (최신, 자동조회)</td></tr>
+        <tr><td>배치</td><td colspan="3">private-일반 서브넷 (2a)</td></tr>
+        <tr><td>인바운드</td><td colspan="3"><span class="pill gray">없음</span> — SSM은 아웃바운드 연결만으로 동작</td></tr>
+        <tr><td>IAM</td><td colspan="3">AmazonSSMManagedInstanceCore</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section id="alb">
+    <h2>module.alb_controller <span class="badge-count">terraform/modules/alb-controller</span></h2>
+    <p class="desc">쿠버네티스 Ingress를 실제 AWS ALB로 만들어주는 컨트롤러. IRSA로 AWS 권한을 받음.</p>
+    <div class="card">
+      <ul class="plain">
+        <li><b>IRSA 역할</b>: <code class="mono">team5-qket-alb-controller-role</code> — <code class="mono">kube-system:aws-load-balancer-controller</code> 서비스어카운트 전용, AWS 공식 정책 원본을 그대로 fetch해서 부착</li>
+        <li><b>설치</b>: Helm (<code class="mono">aws-load-balancer-controller</code>, <code class="mono">eks-charts</code> 저장소) → <code class="mono">kube-system</code> 네임스페이스, replica 2개</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="eso">
+    <h2>module.eso_dev <span class="badge-count">terraform/modules/eso</span></h2>
+    <p class="desc">RDS/Redis 접속 정보를 앱이 쓰는 k8s Secret으로 자동 동기화. RDS 자동 생성 시크릿은 그대로 두고, DB_HOST/REDIS_HOST 전용 시크릿을 별도로 만들어서 합쳐서 동기화.</p>
+
+    <div class="card">
+      <h3>Secrets Manager</h3>
+      <table>
+        <tr><th>시크릿</th><th>내용</th><th>관리 주체</th></tr>
+        <tr><td class="mono">rds!db-... (자동생성, 이름 커스텀 불가)</td><td>username, password</td><td>RDS (건드리지 않음)</td></tr>
+        <tr><td class="mono">team5-qket-connection-dev</td><td>DB_HOST, REDIS_HOST</td><td>Terraform 신규 생성</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>동기화 흐름 (SecretStore + ExternalSecret)</h3>
+      <table>
+        <tr><th>k8s Secret</th><th>네임스페이스</th><th>키</th><th>출처</th></tr>
+        <tr><td class="mono">db-secrets</td><td class="mono">qket-dev</td><td>DB_HOST</td><td>connection 시크릿</td></tr>
+        <tr><td></td><td></td><td>DB_USERNAME / DB_PASSWORD</td><td>RDS 자동 시크릿</td></tr>
+        <tr><td class="mono">redis-secrets</td><td class="mono">qket-dev</td><td>REDIS_HOST</td><td>connection 시크릿</td></tr>
+      </table>
+      <div class="note">refreshInterval: 1시간 — Secrets Manager 값이 바뀌면 최대 1시간 이내 k8s Secret에 자동 반영 (단, 이미 떠있는 파드는 재시작 전까지 값 안 바뀜)</div>
+    </div>
+
+    <div class="card">
+      <h3>IRSA 역할</h3>
+      <p style="margin:0;font-size:12.5px;color:var(--text-2)"><code class="mono">team5-qket-eso-role</code> — <code class="mono">external-secrets:external-secrets</code> 서비스어카운트 전용, 위 두 시크릿(RDS 자동 + connection)에 대한 <code class="mono">GetSecretValue</code>/<code class="mono">DescribeSecret</code>만 허용 (최소 권한)</p>
+    </div>
+  </section>
+
+  <section id="k8s">
+    <h2>쿠버네티스 현황</h2>
+    <p class="desc">실제 클러스터에 떠있는 네임스페이스와 파드 (kubectl 조회 기준).</p>
+
+    <div class="card">
+      <h3>네임스페이스 (7개)</h3>
+      <table>
+        <tr><th>이름</th><th>용도</th><th>관리</th></tr>
+        <tr><td class="mono">qket-dev</td><td>dev 앱 배포 대상</td><td><span class="pill purple">Terraform</span></td></tr>
+        <tr><td class="mono">qket-prod</td><td>prod 앱 배포 대상 (준비만, 아직 미사용)</td><td><span class="pill purple">Terraform</span></td></tr>
+        <tr><td class="mono">external-secrets</td><td>ESO 컨트롤러</td><td><span class="pill gray">Helm 자동생성</span></td></tr>
+        <tr><td class="mono">kube-system</td><td>EKS 기본 + ALB Controller</td><td><span class="pill gray">EKS 기본</span></td></tr>
+        <tr><td class="mono">default / kube-public / kube-node-lease</td><td>클러스터 기본 네임스페이스</td><td><span class="pill gray">EKS 기본</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>주요 파드</h3>
+      <table>
+        <tr><th>네임스페이스</th><th>파드</th><th>역할</th></tr>
+        <tr><td class="mono">kube-system</td><td class="mono">aws-load-balancer-controller × 2</td><td>Ingress → ALB 변환</td></tr>
+        <tr><td class="mono">kube-system</td><td class="mono">aws-node × 2 (DaemonSet)</td><td>VPC CNI (파드에 ENI/IP 부여)</td></tr>
+        <tr><td class="mono">kube-system</td><td class="mono">coredns × 2</td><td>클러스터 내부 DNS</td></tr>
+        <tr><td class="mono">kube-system</td><td class="mono">kube-proxy × 2 (DaemonSet)</td><td>서비스 라우팅</td></tr>
+        <tr><td class="mono">external-secrets</td><td class="mono">external-secrets</td><td>Secrets Manager → k8s Secret 동기화 본체</td></tr>
+        <tr><td class="mono">external-secrets</td><td class="mono">external-secrets-webhook</td><td>ExternalSecret 리소스 유효성 검증</td></tr>
+        <tr><td class="mono">external-secrets</td><td class="mono">external-secrets-cert-controller</td><td>webhook용 TLS 인증서 관리</td></tr>
+      </table>
+      <div class="note">노드 2대(각 AZ 1대)에 DaemonSet(aws-node, kube-proxy)이 노드당 1개씩 떠서 총 2개씩 보이는 것 — 정상입니다.</div>
+    </div>
+  </section>
+
+  <section id="helm">
+    <h2>Helm 릴리즈</h2>
+    <table>
+      <tr><th>릴리즈</th><th>차트</th><th>네임스페이스</th><th>설치 주체</th></tr>
+      <tr><td class="mono">aws-load-balancer-controller</td><td class="mono">eks-charts/aws-load-balancer-controller</td><td class="mono">kube-system</td><td><code class="mono">module.alb_controller</code></td></tr>
+      <tr><td class="mono">external-secrets</td><td class="mono">external-secrets/external-secrets</td><td class="mono">external-secrets</td><td><code class="mono">module.eso_dev</code></td></tr>
+    </table>
+  </section>
+
+  <section id="sg">
+    <h2>보안그룹 요약</h2>
+    <table>
+      <tr><th>보안그룹</th><th>인바운드 허용</th><th>포트</th></tr>
+      <tr><td class="mono">team5-qket-rds-dev-sg</td><td>EKS 클러스터 SG, bastion SG</td><td>3306</td></tr>
+      <tr><td class="mono">team5-qket-redis-dev-sg</td><td>EKS 클러스터 SG, bastion SG</td><td>6379</td></tr>
+      <tr><td class="mono">team5-qket-ssm-bastion-sg</td><td><span class="pill gray">없음</span> (아웃바운드만)</td><td>-</td></tr>
+      <tr><td>EKS 클러스터 보안그룹</td><td>EKS 자동 생성/관리</td><td>-</td></tr>
+    </table>
+  </section>
+
+  <section id="access">
+    <h2>접속 방법</h2>
+    <div class="card">
+      <h3>kubectl 연결</h3>
+      <pre class="mono" style="margin:0;font-size:12px;color:var(--text-2)">aws eks update-kubeconfig --region ap-northeast-2 --name team5-qket-cluster</pre>
+    </div>
+    <div class="card">
+      <h3>RDS/Redis에 직접 접속 (SSM 터널링)</h3>
+      <pre class="mono" style="margin:0;font-size:12px;color:var(--text-2);white-space:pre-wrap">aws ssm start-session --target &lt;ssm_bastion_instance_id&gt; \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["&lt;rds_dev_endpoint&gt;"],"portNumber":["3306"],"localPortNumber":["3306"]}'</pre>
+      <div class="note">모든 엔드포인트/ID는 <code class="mono">terraform output</code>으로 확인 (예: <code class="mono">terraform output ssm_bastion_instance_id</code>)</div>
+    </div>
+  </section>
+
+  <footer>
+    이 문서는 <code class="mono">terraform/</code> 코드와 실제 AWS/쿠버네티스 상태를 기준으로 작성됨. 인프라 변경 시 수동으로 갱신 필요.
+  </footer>
+
+</div>
+</body>
+</html>
