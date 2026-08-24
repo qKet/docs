@@ -14,12 +14,12 @@ flowchart TD
     end
 
     subgraph BUILD["② release/main에 push 시"]
-        B1["Test & build<br/>(MySQL/Redis 서비스 컨테이너로<br/>실제 컨텍스트 로딩 테스트)"]
+        B1["Test and build<br/>(MySQL/Redis 서비스 컨테이너로<br/>실제 컨텍스트 로딩 테스트)"]
         B2["AWS OIDC 인증<br/>(장기 자격증명 미사용)"]
         B3["ECR push<br/>team5/ecr/qket:{backend,frontend}-{sha7}"]
         B4["GitHub App 토큰 발급<br/>(qket-ci-bot, ~1시간 단명)"]
         B5["qKet/CD 레포 write-back<br/>helm/values*.yaml의 image 태그 교체"]
-        B1 --> B2 --> B3 --> B4 --> B5
+        B1 --> B2 --> B3 --> B4
     end
 
     subgraph CD["③ 배포 (ArgoCD, 수동 Sync)"]
