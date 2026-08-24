@@ -9,23 +9,23 @@
 ```mermaid
 flowchart TD
     subgraph PR["① PR 생성 시 (dev/release/main 대상)"]
-        PR1["pr-build-check<br/>빌드만 검증(테스트 제외)"]
-        PR2["secret-scan<br/>gitleaks로 유출된 키 탐지"]
+        PR1["(1)pr-build-check<br/>빌드만 검증(테스트 제외)"]
+        PR2["(2)secret-scan<br/>gitleaks로 유출된 키 탐지"]
     end
 
     subgraph BUILD["② release/main에 push 시"]
-        B1["Test & build<br/>(MySQL/Redis 서비스 컨테이너로<br/>실제 컨텍스트 로딩 테스트)"]
-        B2["AWS OIDC 인증<br/>(장기 자격증명 미사용)"]
-        B3["ECR push<br/>team5/ecr/qket:{backend,frontend}-{sha7}"]
-        B4["GitHub App 토큰 발급<br/>(qket-ci-bot, ~1시간 단명)"]
-        B5["qKet/CD 레포 write-back<br/>helm/values*.yaml의 image 태그 교체"]
-        B1 --> B2 --> B3 --> B4 --> B5
+        B1["(1)Test and build<br/>(MySQL/Redis 서비스 컨테이너로<br/>실제 컨텍스트 로딩 테스트)"]
+        B2["(2)AWS OIDC 인증<br/>(장기 자격증명 미사용)"]
+        B3["(3)ECR push<br/>team5/ecr/qket:{backend,frontend}-{sha7}"]
+        B4["(4)GitHub App 토큰 발급<br/>(qket-ci-bot, ~1시간 단명)"]
+        B5["(5)qKet/CD 레포 write-back<br/>helm/values*.yaml의 image 태그 교체"]
+        B1 --> B2 --> B3 --> B4
     end
 
     subgraph CD["③ 배포 (ArgoCD, 수동 Sync)"]
-        C1["ArgoCD가 CD 레포 변경 감지"]
-        C2["Sync 버튼 클릭 (automated 미설정)"]
-        C3["EKS에 Helm 배포"]
+        C1["(1)ArgoCD가 CD 레포 변경 감지"]
+        C2["(2)Sync 버튼 클릭 (automated 미설정)"]
+        C3["(3)EKS에 Helm 배포"]
         C1 --> C2 --> C3
     end
 
